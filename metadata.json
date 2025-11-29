@@ -1,0 +1,5 @@
+{
+  "name": "Sonic AI Studio",
+  "description": "A web-based audio studio featuring a real-time equalizer, visualizer, AI-powered chat assistance, and Gemini text-to-speech generation.",
+  "requestFramePermissions": []
+}

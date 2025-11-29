@@ -1,0 +1,22 @@
+{
+  "name": "Sonic AI Studio",
+  "short_name": "SonicAI",
+  "description": "A web-based audio studio featuring a real-time equalizer, visualizer, AI-powered chat assistance, and Gemini text-to-speech generation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/9034/9034293.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/9034/9034293.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
