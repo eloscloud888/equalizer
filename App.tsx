@@ -9,6 +9,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('equalizer');
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     // Check if running in standalone mode (installed)
@@ -43,18 +44,14 @@ const App: React.FC = () => {
 
   const handleInstallClick = () => {
     if (!installPrompt) {
-        alert("To install, look for the 'Install' icon in your browser address bar (usually on the right side).");
+        // If the prompt isn't available, we show the Info Modal which contains instructions
+        setShowInfoModal(true);
         return;
     }
-    // Show the install prompt
     installPrompt.prompt();
-    // Wait for the user to respond to the prompt
     installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
       if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
         setInstallPrompt(null);
-      } else {
-        console.log('User dismissed the install prompt');
       }
     });
   };
@@ -113,6 +110,14 @@ const App: React.FC = () => {
               </div>
            )}
 
+           <button 
+              onClick={() => setShowInfoModal(true)}
+              className="w-full flex items-center gap-3 px-4 py-2 text-zinc-500 hover:text-white hover:bg-zinc-900 rounded-lg transition-all"
+           >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span className="hidden lg:block text-sm font-medium">App Info</span>
+           </button>
+
            <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 hidden lg:block">
               <p className="text-xs text-zinc-500 mb-2">Powered by</p>
               <div className="flex items-center gap-2 text-zinc-300 font-semibold text-sm">
@@ -133,6 +138,11 @@ const App: React.FC = () => {
             {currentView === 'transcription' && <AudioTranscription />}
          </div>
       </main>
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <InfoModal onClose={() => setShowInfoModal(false)} />
+      )}
     </div>
   );
 };
@@ -158,5 +168,123 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({ active, onClick, icon, la
     <span className={`hidden lg:block font-medium text-sm ${active ? 'text-white' : ''}`}>{label}</span>
   </button>
 );
+
+const InfoModal: React.FC<{onClose: () => void}> = ({onClose}) => {
+  const url = window.location.href;
+  const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<'user' | 'dev'>('user');
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-zinc-900 rounded-2xl border border-zinc-800 shadow-2xl max-w-lg w-full p-6 relative flex flex-col max-h-[90vh]">
+        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        
+        <h3 className="text-xl font-bold text-white mb-4">Application Info</h3>
+        
+        {/* Tabs */}
+        <div className="flex border-b border-zinc-800 mb-4">
+          <button 
+            onClick={() => setTab('user')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'user' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            User Guide
+          </button>
+          <button 
+             onClick={() => setTab('dev')}
+             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === 'dev' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Dev Guide
+          </button>
+        </div>
+        
+        <div className="overflow-y-auto flex-1 pr-2 space-y-4">
+          {tab === 'user' && (
+            <>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                Install this app on your device for offline access and native performance.
+              </p>
+
+              <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 flex items-center gap-2">
+                <input 
+                    type="text" 
+                    readOnly 
+                    value={url} 
+                    className="bg-transparent text-zinc-300 text-xs w-full focus:outline-none font-mono"
+                />
+                <button 
+                  onClick={copyUrl}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${copied ? 'bg-green-500/20 text-green-400' : 'bg-zinc-800 hover:bg-zinc-700 text-white'}`}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+
+              <div className="bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/20">
+                <h4 className="text-indigo-300 font-medium text-sm mb-2">Installation Steps:</h4>
+                <ol className="list-decimal list-inside text-xs text-zinc-400 space-y-2">
+                    <li>Copy the URL above.</li>
+                    <li>Open <strong>Google Chrome</strong> or <strong>Edge</strong>.</li>
+                    <li>Paste the URL.</li>
+                    <li>Click <strong>"Install App"</strong> in the sidebar.</li>
+                </ol>
+              </div>
+            </>
+          )}
+
+          {tab === 'dev' && (
+            <>
+               <p className="text-zinc-400 text-sm">
+                 Instructions for running the source code locally.
+               </p>
+               
+               <div className="space-y-3">
+                  <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+                    <p className="text-xs text-zinc-500 mb-1">1. Create Project</p>
+                    <code className="text-xs font-mono text-green-400 block">npm create vite@latest my-studio -- --template react-ts</code>
+                  </div>
+                  
+                  <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+                    <p className="text-xs text-zinc-500 mb-1">2. Install Dependencies</p>
+                    <code className="text-xs font-mono text-green-400 block">npm install @google/genai lucide-react</code>
+                  </div>
+
+                  <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
+                    <p className="text-xs text-zinc-500 mb-1">3. Run Locally</p>
+                    <code className="text-xs font-mono text-green-400 block">npm run dev</code>
+                  </div>
+               </div>
+
+               <div className="bg-red-900/10 p-4 rounded-lg border border-red-500/20">
+                 <h4 className="text-red-400 font-medium text-sm mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Troubleshooting
+                 </h4>
+                 <p className="text-xs text-zinc-400 mb-2">
+                   <strong>Error:</strong> "File ...npm.ps1 cannot be loaded because running scripts is disabled"
+                 </p>
+                 <p className="text-xs text-zinc-400 mb-2">
+                   <strong>Fix 1 (Easiest):</strong> Use Command Prompt (cmd.exe) instead of PowerShell.
+                 </p>
+                 <p className="text-xs text-zinc-400">
+                   <strong>Fix 2:</strong> Run this command in PowerShell:
+                   <br/>
+                   <code className="bg-black px-1 py-0.5 rounded text-white mt-1 block">Set-ExecutionPolicy RemoteSigned -Scope CurrentUser</code>
+                 </p>
+               </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default App;
