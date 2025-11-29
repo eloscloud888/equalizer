@@ -74,3 +74,50 @@ export const generateSpeech = async (
     throw error;
   }
 };
+
+/**
+ * Transcribes audio using gemini-2.5-flash
+ */
+export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+  try {
+    // Convert Blob to Base64
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          // Remove "data:audio/webm;base64," prefix if present
+          const base64String = reader.result.split(',')[1];
+          resolve(base64String);
+        } else {
+          reject(new Error("Failed to convert blob to base64 string"));
+        }
+      };
+      reader.onerror = reject;
+    });
+    
+    reader.readAsDataURL(audioBlob);
+    const base64Audio = await base64Promise;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              // Gemini supports various mime types. If blob.type is empty or unsupported inline, 
+              // it might need explicit setting. WebM/MP4 is common for MediaRecorder.
+              mimeType: audioBlob.type || 'audio/webm',
+              data: base64Audio
+            }
+          },
+          { text: "Generate a verbatim transcription of this audio." }
+        ]
+      }
+    });
+
+    return response.text || "Transcription failed or empty.";
+  } catch (error) {
+    console.error("Error transcribing audio:", error);
+    throw error;
+  }
+};

@@ -10,6 +10,53 @@ const FilePlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" he
 const FolderPlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>;
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const MusicIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>;
+const PaletteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>;
+
+// --- Persistence Helpers ---
+const DB_NAME = 'SonicAudioDB';
+const STORE_NAME = 'playlist';
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { autoIncrement: true });
+      }
+    };
+  });
+};
+
+const savePlaylistToDB = async (files: File[]) => {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.clear(); // Simple strategy: clear and rewrite to ensure order matches state
+    files.forEach(file => store.add(file));
+  } catch (error) {
+    console.error("Error saving playlist to DB:", error);
+  }
+};
+
+const loadPlaylistFromDB = async (): Promise<File[]> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result as File[]);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error("Error loading playlist from DB:", error);
+    return [];
+  }
+};
 
 const Equalizer: React.FC = () => {
   const [status, setStatus] = useState<AudioStatus>(AudioStatus.IDLE);
@@ -21,7 +68,12 @@ const Equalizer: React.FC = () => {
     treble: 0,
     volume: 1,
   });
+  
+  const [visualizerTheme, setVisualizerTheme] = useState('Default');
+  const [isRestoring, setIsRestoring] = useState(true);
 
+  // Refs for animation
+  const visualizerThemeRef = useRef('Default');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Refs for State in callbacks
@@ -47,6 +99,44 @@ const Equalizer: React.FC = () => {
     currentIndexRef.current = currentTrackIndex;
   }, [playlist, currentTrackIndex]);
 
+  useEffect(() => {
+    visualizerThemeRef.current = visualizerTheme;
+  }, [visualizerTheme]);
+
+  // Load Settings & Playlist on Mount
+  useEffect(() => {
+    const loadData = async () => {
+      // 1. Load EQ Settings
+      const savedEq = localStorage.getItem('sonic_eq_settings');
+      if (savedEq) {
+        try { setEqSettings(JSON.parse(savedEq)); } catch(e){}
+      }
+
+      // 2. Load Theme
+      const savedTheme = localStorage.getItem('sonic_visualizer_theme');
+      if (savedTheme) setVisualizerTheme(savedTheme);
+
+      // 3. Load Playlist from IndexedDB
+      const savedFiles = await loadPlaylistFromDB();
+      if (savedFiles && savedFiles.length > 0) {
+        setPlaylist(savedFiles);
+      }
+      setIsRestoring(false);
+    };
+
+    loadData();
+  }, []);
+
+  // Save Settings when changed
+  useEffect(() => {
+    localStorage.setItem('sonic_eq_settings', JSON.stringify(eqSettings));
+  }, [eqSettings]);
+
+  // Save Theme when changed
+  useEffect(() => {
+    localStorage.setItem('sonic_visualizer_theme', visualizerTheme);
+  }, [visualizerTheme]);
+
   // Initialize Audio Context
   useEffect(() => {
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -67,12 +157,18 @@ const Equalizer: React.FC = () => {
   const addToPlaylist = (files: FileList | null) => {
     if (!files) return;
     const newFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
-    setPlaylist(prev => [...prev, ...newFiles]);
     
-    // Auto-play if it's the first track added
-    if (playlist.length === 0 && newFiles.length > 0) {
-      playTrack(0, [...playlist, ...newFiles]);
-    }
+    setPlaylist(prev => {
+        const updated = [...prev, ...newFiles];
+        // Persist to DB
+        savePlaylistToDB(updated);
+        
+        // Auto-play if it's the first track added
+        if (prev.length === 0 && newFiles.length > 0) {
+            playTrack(0, updated);
+        }
+        return updated;
+    });
   };
 
   const removeFromPlaylist = (index: number, e: React.MouseEvent) => {
@@ -80,8 +176,11 @@ const Equalizer: React.FC = () => {
     setPlaylist(prev => {
         const newPlaylist = [...prev];
         newPlaylist.splice(index, 1);
+        // Sync with DB
+        savePlaylistToDB(newPlaylist);
         return newPlaylist;
     });
+    
     // Adjust index if needed
     if (index === currentTrackIndex) {
         stopAudio();
@@ -154,12 +253,41 @@ const Equalizer: React.FC = () => {
     let barHeight;
     let x = 0;
 
+    const theme = visualizerThemeRef.current;
+
     for (let i = 0; i < bufferLength; i++) {
       barHeight = dataArray[i] / 1.5;
 
-      const r = barHeight + 25 * (i / bufferLength);
-      const g = 250 * (i / bufferLength);
-      const b = 50;
+      let r = 0, g = 0, b = 0;
+
+      switch (theme) {
+        case 'Ocean':
+            r = 0;
+            g = 100 + barHeight;
+            b = 200 + (i / bufferLength) * 55;
+            break;
+        case 'Sunset':
+            r = 200 + barHeight / 2;
+            g = 50 + (i / bufferLength) * 100;
+            b = 50;
+            break;
+        case 'Matrix':
+            r = 0;
+            g = 150 + barHeight;
+            b = 0;
+            break;
+        case 'Vapor':
+            r = 150 + barHeight;
+            g = 50;
+            b = 200 + (i / bufferLength) * 55;
+            break;
+        case 'Default':
+        default:
+            r = barHeight + 25 * (i / bufferLength);
+            g = 250 * (i / bufferLength);
+            b = 50;
+            break;
+      }
 
       ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
@@ -255,13 +383,33 @@ const Equalizer: React.FC = () => {
   return (
     <div className="flex flex-col h-full w-full gap-4">
         {/* Top Section: Visualizer */}
-        <div className="h-48 md:h-64 bg-zinc-950 relative border border-zinc-800 rounded-xl overflow-hidden shadow-2xl flex-shrink-0">
+        <div className="h-48 md:h-64 bg-zinc-950 relative border border-zinc-800 rounded-xl overflow-hidden shadow-2xl flex-shrink-0 group">
             <canvas 
               ref={canvasRef} 
               width={1000} 
               height={256} 
               className="w-full h-full object-cover opacity-80"
             />
+            
+            {/* Visualizer Theme Selector */}
+            <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 bg-zinc-900/80 backdrop-blur px-3 py-1.5 rounded-full border border-zinc-700/50 shadow-lg">
+                    <span className="text-zinc-400"><PaletteIcon /></span>
+                    <select 
+                        value={visualizerTheme} 
+                        onChange={(e) => setVisualizerTheme(e.target.value)}
+                        className="bg-transparent text-xs text-zinc-300 outline-none cursor-pointer appearance-none font-medium hover:text-white"
+                        title="Change Visualizer Theme"
+                    >
+                        <option value="Default">Neon</option>
+                        <option value="Ocean">Ocean</option>
+                        <option value="Sunset">Sunset</option>
+                        <option value="Matrix">Matrix</option>
+                        <option value="Vapor">Vapor</option>
+                    </select>
+                </div>
+             </div>
+
             {!currentTrackName && (
               <div className="absolute inset-0 flex items-center justify-center text-zinc-500">
                 <span className="text-sm tracking-wider uppercase">Visualizer Standby</span>
@@ -357,7 +505,10 @@ const Equalizer: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                    {playlist.length === 0 && (
+                    {isRestoring && (
+                        <div className="p-4 text-center text-zinc-500 text-xs animate-pulse">Restoring library...</div>
+                    )}
+                    {!isRestoring && playlist.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2 p-8 text-center opacity-50">
                             <MusicIcon />
                             <p className="text-xs">Drop files or folders here to start</p>

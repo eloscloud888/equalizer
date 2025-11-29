@@ -2,7 +2,7 @@
   "name": "Sonic AI Studio",
   "short_name": "SonicAI",
   "description": "Professional Audio Studio featuring Real-time Equalizer, AI Chatbot, and Text-to-Speech.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",

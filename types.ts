@@ -12,7 +12,7 @@ export interface EqualizerSettings {
   volume: number;
 }
 
-export type ViewState = 'equalizer' | 'chat' | 'tts';
+export type ViewState = 'equalizer' | 'chat' | 'tts' | 'transcription';
 
 export enum AudioStatus {
   IDLE = 'IDLE',

@@ -1,7 +1,8 @@
 const CACHE_NAME = 'sonic-ai-v1';
+// Use relative paths for caching
 const urlsToCache = [
-  '/',
-  '/index.html',
+  './',
+  './index.html',
 ];
 
 self.addEventListener('install', (event) => {

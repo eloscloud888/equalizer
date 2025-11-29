@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Equalizer from './components/Equalizer';
 import ChatBot from './components/ChatBot';
 import TextToSpeech from './components/TextToSpeech';
+import AudioTranscription from './components/AudioTranscription';
 import { ViewState } from './types';
 
 const App: React.FC = () => {
@@ -90,6 +91,13 @@ const App: React.FC = () => {
           label="Text to Speech"
         />
 
+        <SidebarButton 
+          active={currentView === 'transcription'} 
+          onClick={() => setCurrentView('transcription')} 
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>}
+          label="Transcribe"
+        />
+
         <div className="mt-auto px-4 lg:px-6 flex flex-col gap-4">
            {/* Only show Install button if NOT standalone */}
            {!isStandalone && (
@@ -122,6 +130,7 @@ const App: React.FC = () => {
             {currentView === 'equalizer' && <Equalizer />}
             {currentView === 'chat' && <ChatBot />}
             {currentView === 'tts' && <TextToSpeech />}
+            {currentView === 'transcription' && <AudioTranscription />}
          </div>
       </main>
     </div>
