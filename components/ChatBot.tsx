@@ -2,7 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { streamChatResponse } from '../services/gemini';
 import { ChatMessage } from '../types';
 
-const ChatBot: React.FC = () => {
+interface ChatBotProps {
+  apiKey: string;
+}
+
+const ChatBot: React.FC<ChatBotProps> = ({ apiKey }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '1', role: 'model', text: 'Hello! I am Sonic, your audio engineering assistant. Ask me anything about equalization, mixing, or sound design.' }
   ]);
@@ -20,6 +24,11 @@ const ChatBot: React.FC = () => {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    
+    if (!apiKey) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: 'Please set your Gemini API Key in the settings to use this feature.' }]);
+      return;
+    }
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
@@ -28,24 +37,25 @@ const ChatBot: React.FC = () => {
 
     try {
       // Prepare history for Gemini
-      // Mapping 'model' to 'model' and 'user' to 'user' correctly
       const history = messages.map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
       }));
 
-      const stream = await streamChatResponse(history, userMsg.text);
+      const stream = await streamChatResponse(apiKey, history, userMsg.text);
       
       const botMsgId = (Date.now() + 1).toString();
       setMessages(prev => [...prev, { id: botMsgId, role: 'model', text: '', isStreaming: true }]);
 
       let fullText = '';
       for await (const chunk of stream) {
-        const textChunk = chunk.text();
-        fullText += textChunk;
-        setMessages(prev => prev.map(m => 
-          m.id === botMsgId ? { ...m, text: fullText } : m
-        ));
+        const textChunk = chunk.text;
+        if (textChunk) {
+            fullText += textChunk;
+            setMessages(prev => prev.map(m => 
+              m.id === botMsgId ? { ...m, text: fullText } : m
+            ));
+        }
       }
       
       setMessages(prev => prev.map(m => 
@@ -100,7 +110,7 @@ const ChatBot: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about your mix..."
+            placeholder={apiKey ? "Ask about your mix..." : "Please set API Key first..."}
             disabled={isLoading}
             className="w-full bg-zinc-900 text-white placeholder-zinc-500 border border-zinc-700 rounded-full py-3 px-5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
           />

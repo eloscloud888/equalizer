@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { transcribeAudio } from '../services/gemini';
 
-const AudioTranscription: React.FC = () => {
+interface AudioTranscriptionProps {
+  apiKey: string;
+}
+
+const AudioTranscription: React.FC<AudioTranscriptionProps> = ({ apiKey }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcription, setTranscription] = useState('');
@@ -107,9 +111,11 @@ const AudioTranscription: React.FC = () => {
   };
 
   const startRecording = async () => {
+    if (!apiKey) {
+        setError("API Key is missing. Please add it in the settings.");
+        return;
+    }
     setError('');
-    // Do not clear transcription immediately if user wants to append? 
-    // For now, let's clear it to keep it simple as "New Transcription"
     setTranscription(''); 
     chunksRef.current = [];
     setRecordingDuration(0);
@@ -165,10 +171,10 @@ const AudioTranscription: React.FC = () => {
   const processAudio = async (blob: Blob) => {
     setIsProcessing(true);
     try {
-      const result = await transcribeAudio(blob);
+      const result = await transcribeAudio(apiKey, blob);
       setTranscription(result);
     } catch (err: any) {
-      setError("Failed to transcribe audio. " + (err.message || ''));
+      setError("Failed to transcribe audio. " + (err.message || 'Check API Key'));
     } finally {
       setIsProcessing(false);
     }

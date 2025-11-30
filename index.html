@@ -36,18 +36,20 @@
       }
       
       /* Re-enable selection for inputs */
-      input, textarea, .selectable {
+      input, textarea, .selectable, select, button {
         user-select: text;
         -webkit-user-select: text;
       }
     </style>
-  <script type="importmap">
+    <!-- Local development uses bundled dependencies from npm, importmap removed for offline safety -->
+    <script type="module" src="./src/index.tsx"></script>
+<script type="importmap">
 {
   "imports": {
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "react": "https://aistudiocdn.com/react@^19.2.0"
   }
 }
 </script>

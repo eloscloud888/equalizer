@@ -1,7 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { generateSpeech } from '../services/gemini';
 
-const TextToSpeech: React.FC = () => {
+interface TextToSpeechProps {
+  apiKey: string;
+}
+
+const TextToSpeech: React.FC<TextToSpeechProps> = ({ apiKey }) => {
   const [text, setText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -9,12 +13,17 @@ const TextToSpeech: React.FC = () => {
 
   const generate = async () => {
     if (!text.trim()) return;
+    if (!apiKey) {
+        setError("API Key is missing. Please set it via the sidebar button.");
+        return;
+    }
+
     setIsGenerating(true);
     setError('');
 
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const buffer = await generateSpeech(text, ctx);
+      const buffer = await generateSpeech(apiKey, text, ctx);
       
       const newItem = {
         id: Date.now().toString(),
@@ -25,7 +34,7 @@ const TextToSpeech: React.FC = () => {
       setHistory(prev => [newItem, ...prev]);
       playBuffer(buffer, ctx);
     } catch (err: any) {
-      setError(err.message || "Failed to generate speech.");
+      setError(err.message || "Failed to generate speech. Check API Key.");
     } finally {
       setIsGenerating(false);
     }

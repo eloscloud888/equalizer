@@ -1,18 +1,22 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-// Initialize Gemini Client
-// Note: process.env.API_KEY is assumed to be available in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to create a client instance with the user's key
+const getClient = (apiKey: string) => {
+  if (!apiKey) throw new Error("API Key is missing. Please set it in the settings.");
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Sends a message to the Gemini Chatbot (gemini-3-pro-preview)
  * Returns a stream of text chunks.
  */
 export const streamChatResponse = async (
+  apiKey: string,
   history: { role: string; parts: { text: string }[] }[],
   newMessage: string
 ) => {
   try {
+    const ai = getClient(apiKey);
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       history: history,
@@ -34,10 +38,12 @@ export const streamChatResponse = async (
  * Returns an AudioBuffer.
  */
 export const generateSpeech = async (
+  apiKey: string,
   text: string,
   audioContext: AudioContext
 ): Promise<AudioBuffer> => {
   try {
+    const ai = getClient(apiKey);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: text }] }],
@@ -78,8 +84,10 @@ export const generateSpeech = async (
 /**
  * Transcribes audio using gemini-2.5-flash
  */
-export const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+export const transcribeAudio = async (apiKey: string, audioBlob: Blob): Promise<string> => {
   try {
+    const ai = getClient(apiKey);
+    
     // Convert Blob to Base64
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve, reject) => {
